@@ -50,11 +50,19 @@ syskit backup
 ## 🛠 Development
 
 ```bash
-# Install dev dependencies
+# Install dev dependencies (includes ruff, mypy, pytest, build)
 uv pip install -e ".[dev]"
 
 # Run locally
 python -m syskit.cli --help
+
+# Lint + format + type check
+ruff check .
+ruff format .
+mypy src/
+
+# Run tests (works on any OS thanks to mocks)
+pytest
 ```
 
 ## Roadmap

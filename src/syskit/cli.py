@@ -12,6 +12,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from syskit import __version__
+
 app = typer.Typer(
     name="syskit",
     help="Modern CLI toolkit for Arch Linux and Manjaro users",
@@ -203,7 +205,7 @@ def backup(
 @app.command()
 def version() -> None:
     """Show syskit version."""
-    console.print("syskit version: [bold cyan]0.1.0[/bold cyan]")
+    console.print(f"syskit version: [bold cyan]{__version__}[/bold cyan]")
 
 
 if __name__ == "__main__":
