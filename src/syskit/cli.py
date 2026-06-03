@@ -5,14 +5,12 @@ from __future__ import annotations
 import platform
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 
 app = typer.Typer(
     name="syskit",
@@ -205,7 +203,7 @@ def backup(
 @app.command()
 def version() -> None:
     """Show syskit version."""
-    console.print(f"syskit version: [bold cyan]0.1.0[/bold cyan]")
+    console.print("syskit version: [bold cyan]0.1.0[/bold cyan]")
 
 
 if __name__ == "__main__":
