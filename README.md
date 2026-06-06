@@ -39,6 +39,7 @@ After `./install.sh`, the `syskit` command is available globally via `~/.local/b
 
 ```bash
 syskit --help
+syskit doctor          # vérifie PATH, locale UTF-8, outils système
 syskit info
 syskit update
 syskit clean --dry-run

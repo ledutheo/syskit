@@ -258,6 +258,46 @@ def test_command_failed_detects_errors():
     assert not command_failed("all good")
 
 
+@patch("syskit.cli.Path.home")
+@patch("syskit.cli.shutil.which")
+@patch("syskit.cli.run_command")
+def test_doctor_all_ok(mock_run, mock_which, mock_home, tmp_path):
+    """doctor exits 0 when all checks pass."""
+    mock_which.side_effect = lambda name: f"/usr/bin/{name}" if name != "syskit" else "/home/bill/.local/bin/syskit"
+
+    def fake_run(cmd, capture=True):
+        if cmd[:2] == ["locale", "charmap"]:
+            return "UTF-8"
+        if cmd[:3] == ["gh", "auth", "status"]:
+            return "Logged in to github.com"
+        if "-c" in cmd:
+            return ""
+        return ""
+
+    mock_run.side_effect = fake_run
+
+    clone = tmp_path / "syskit"
+    clone.mkdir()
+    (clone / "pyproject.toml").touch()
+    venv_py = clone / ".venv" / "bin" / "python"
+    venv_py.parent.mkdir(parents=True)
+    venv_py.touch()
+    mock_home.return_value = tmp_path
+
+    result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "All checks passed" in plain(result.output)
+
+
+@patch("syskit.cli.shutil.which", return_value=None)
+@patch("syskit.cli.run_command", return_value="ISO-8859-1")
+def test_doctor_fails_without_syskit(mock_run, mock_which):
+    """doctor exits 1 when critical checks fail."""
+    result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 1
+    assert "check(s) failed" in plain(result.output)
+
+
 @pytest.mark.parametrize(
     "cmd",
     [
@@ -266,6 +306,7 @@ def test_command_failed_detects_errors():
         "update",
         "search foo",
         "backup --output /tmp/x.tar.gz",
+        "doctor",
         "version",
     ],
 )

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import platform
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import typer
@@ -242,6 +244,80 @@ def backup(
 
     size = output.stat().st_size / 1024 / 1024
     console.print(f"[green]✓ Backup created ({size:.1f} MB)[/green]")
+
+
+@app.command()
+def doctor() -> None:
+    """Check that syskit and the host system are ready to use."""
+    console.print(Panel.fit("🩺 syskit Doctor", style="bold green"))
+
+    checks: list[tuple[str, bool, str]] = []
+
+    syskit_bin = shutil.which("syskit")
+    checks.append(
+        (
+            "syskit in PATH",
+            syskit_bin is not None,
+            syskit_bin or "run ~/syskit/install.sh",
+        )
+    )
+
+    charmap = run_command(["locale", "charmap"])
+    utf8_ok = not command_failed(charmap) and "UTF-8" in charmap.upper()
+    checks.append(("locale UTF-8", utf8_ok, charmap or os.environ.get("LANG", "unset")))
+
+    for tool in ("pacman", "git", "python3"):
+        path = shutil.which(tool)
+        checks.append((tool, path is not None, path or "not found"))
+
+    gh_path = shutil.which("gh")
+    if gh_path:
+        auth = run_command(["gh", "auth", "status"])
+        gh_ok = not command_failed(auth) and "Logged in" in auth
+        checks.append(("gh auth", gh_ok, "logged in" if gh_ok else "run: gh auth login"))
+    else:
+        checks.append(("gh", False, "optional — not installed"))
+
+    clone = Path.home() / "syskit"
+    checks.append(
+        (
+            "syskit source clone",
+            clone.is_dir() and (clone / "pyproject.toml").exists(),
+            str(clone),
+        )
+    )
+
+    venv_python = clone / ".venv" / "bin" / "python"
+    if venv_python.exists():
+        result = run_command(
+            [str(venv_python), "-c", "import syskit; import pytest"],
+            capture=True,
+        )
+        dev_ok = not command_failed(result)
+        checks.append(("dev venv (syskit+pytest)", dev_ok, str(venv_python)))
+    else:
+        checks.append(("dev venv", False, "no .venv — run ./install.sh"))
+
+    table = Table(show_header=True)
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="white")
+    table.add_column("Detail", style="dim")
+
+    failures = 0
+    for name, ok, detail in checks:
+        status = "[green]OK[/green]" if ok else "[red]FAIL[/red]"
+        if not ok:
+            failures += 1
+        table.add_row(name, status, detail[:80])
+
+    console.print(table)
+    console.print(f"\nPython running syskit: [dim]{sys.executable}[/dim]")
+
+    if failures:
+        console.print(f"\n[red]{failures} check(s) failed[/red]")
+        raise typer.Exit(code=1)
+
+    console.print("\n[green]✓ All checks passed — syskit is ready[/green]")
 
 
 @app.command()
