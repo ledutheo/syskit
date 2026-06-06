@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 from unittest.mock import MagicMock, patch
 
@@ -11,13 +12,19 @@ from typer.testing import CliRunner
 from syskit.cli import app, run_command
 
 runner = CliRunner()
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def plain(output: str) -> str:
+    """Strip Rich ANSI codes for stable assertions."""
+    return ANSI_RE.sub("", output)
 
 
 def test_version_command():
     """Basic version command outputs the version string."""
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert "syskit version: 0.1.0" in result.output
+    assert "syskit version: 0.1.0" in plain(result.output)
 
 
 def test_help():
@@ -140,7 +147,7 @@ def test_update_no_aur_helper(mock_run, mock_which):
 
     result = runner.invoke(app, ["update"])
     assert result.exit_code == 0
-    assert "No AUR helper found (yay/paru)" in result.output
+    assert "No AUR helper found (yay/paru)" in plain(result.output)
     assert "System update completed" in result.output
 
 
@@ -156,7 +163,7 @@ def test_search_with_results(mock_run):
 
     result = runner.invoke(app, ["search", "firefox"])
     assert result.exit_code == 0
-    assert "Searching for: firefox" in result.output
+    assert "Searching for: firefox" in plain(result.output)
     assert "firefox" in result.output
     assert "Fast, Private" in result.output
 
