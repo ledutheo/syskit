@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from syskit.cli import app, run_command
+from syskit.cli import app, command_failed, run_command
 
 runner = CliRunner()
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
@@ -126,6 +126,7 @@ def test_clean_with_confirm_yes(mock_run, mock_confirm):
 def test_update_with_aur_helper(mock_run, mock_which):
     """update detects yay/paru and runs it."""
     mock_which.side_effect = lambda x: x == "paru"  # only paru present
+    mock_run.return_value = ""
 
     result = runner.invoke(app, ["update"])
     assert result.exit_code == 0
@@ -141,9 +142,22 @@ def test_update_with_aur_helper(mock_run, mock_which):
 
 @patch("syskit.cli.shutil.which")
 @patch("syskit.cli.run_command")
+def test_update_pacman_failure(mock_run, mock_which):
+    """update exits with error when pacman fails."""
+    mock_which.return_value = None
+    mock_run.return_value = "Error: pacman failed"
+
+    result = runner.invoke(app, ["update"])
+    assert result.exit_code == 1
+    assert "Pacman update failed" in plain(result.output)
+
+
+@patch("syskit.cli.shutil.which")
+@patch("syskit.cli.run_command")
 def test_update_no_aur_helper(mock_run, mock_which):
     """update without AUR helper still succeeds and warns."""
     mock_which.return_value = None
+    mock_run.return_value = ""
 
     result = runner.invoke(app, ["update"])
     assert result.exit_code == 0
@@ -205,7 +219,7 @@ def test_backup_failure(mock_run, tmp_path):
     mock_run.return_value = "Error: tar failed"
 
     result = runner.invoke(app, ["backup", "--output", str(backup_file)])
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     assert "Backup failed" in result.output
 
 
@@ -235,6 +249,13 @@ def test_run_command_file_not_found():
     with patch("subprocess.run", side_effect=FileNotFoundError()):
         out = run_command(["nonexistentcmd"])
         assert "Command not found: nonexistentcmd" in out
+
+
+def test_command_failed_detects_errors():
+    """command_failed recognizes run_command error prefixes."""
+    assert command_failed("Error: boom")
+    assert command_failed("Command not found: foo")
+    assert not command_failed("all good")
 
 
 @pytest.mark.parametrize(

@@ -39,6 +39,13 @@ def run_command(cmd: list[str], capture: bool = True) -> str:
         return f"Command not found: {cmd[0]}"
 
 
+def command_failed(output: str) -> bool:
+    """Return True when run_command reported a failure."""
+    if not isinstance(output, str):
+        return False
+    return output.startswith("Error:") or output.startswith("Command not found:")
+
+
 @app.command()
 def info() -> None:
     """Display detailed system information."""
@@ -116,10 +123,34 @@ def clean(
 
     if typer.confirm("\nProceed with cleanup?"):
         console.print("\n[green]Running cleanup...[/green]")
-        # Actual cleanup commands would go here
-        run_command(["sudo", "pacman", "-Sc", "--noconfirm"])
-        run_command(["sudo", "journalctl", "--vacuum-time=2weeks"])
-        console.print("[green]✓ Cleanup completed[/green]")
+        warnings: list[str] = []
+
+        if orphans and not command_failed(orphans):
+            pkgs = orphans.split()
+            if pkgs:
+                result = run_command(["sudo", "pacman", "-Rns", "--noconfirm", *pkgs])
+                if command_failed(result):
+                    warnings.append(result)
+
+        result = run_command(["sudo", "pacman", "-Sc", "--noconfirm"])
+        if command_failed(result):
+            warnings.append(result)
+
+        result = run_command(["sudo", "journalctl", "--vacuum-time=2weeks"])
+        if command_failed(result):
+            warnings.append(result)
+
+        for pattern in ("thumbnails", "mozilla/firefox"):
+            cache_path = Path.home() / ".cache" / pattern
+            if cache_path.exists():
+                shutil.rmtree(cache_path, ignore_errors=True)
+
+        if warnings:
+            console.print("[yellow]Cleanup completed with warnings:[/yellow]")
+            for warning in warnings:
+                console.print(f"  [yellow]→[/yellow] {warning}")
+        else:
+            console.print("[green]✓ Cleanup completed[/green]")
     else:
         console.print("Aborted.")
 
@@ -130,13 +161,19 @@ def update() -> None:
     console.print(Panel.fit("⬆️  System Update", style="bold green"))
 
     console.print("[cyan]Updating official packages...[/cyan]")
-    run_command(["sudo", "pacman", "-Syu", "--noconfirm"])
+    result = run_command(["sudo", "pacman", "-Syu", "--noconfirm"])
+    if command_failed(result):
+        console.print(f"[red]Pacman update failed: {result}[/red]")
+        raise typer.Exit(code=1)
 
     # Try AUR helpers
     for helper in ["yay", "paru"]:
         if shutil.which(helper):
             console.print(f"[cyan]Updating AUR packages with {helper}...[/cyan]")
-            run_command([helper, "-Syu", "--noconfirm"])
+            result = run_command([helper, "-Syu", "--noconfirm"])
+            if command_failed(result):
+                console.print(f"[red]AUR update failed: {result}[/red]")
+                raise typer.Exit(code=1)
             break
     else:
         console.print("[yellow]No AUR helper found (yay/paru)[/yellow]")
@@ -185,21 +222,26 @@ def backup(
     console.print(Panel.fit(f"💾 Creating backup → [bold]{output}[/bold]", style="bold blue"))
 
     important_paths = [
-        str(Path.home() / ".config"),
-        str(Path.home() / ".ssh"),
-        str(Path.home() / ".zshrc"),
-        str(Path.home() / ".gitconfig"),
+        Path.home() / ".config",
+        Path.home() / ".ssh",
+        Path.home() / ".zshrc",
+        Path.home() / ".gitconfig",
     ]
+    existing_paths = [str(path) for path in important_paths if path.exists()]
 
-    # Simple tar backup (real version would be smarter)
-    cmd = ["tar", "-czf", str(output)] + important_paths
+    if not existing_paths:
+        console.print("[red]Backup failed: no config paths found[/red]")
+        raise typer.Exit(code=1)
+
+    cmd = ["tar", "-czf", str(output), *existing_paths]
     result = run_command(cmd)
 
-    if "Error" in result:
+    if command_failed(result):
         console.print(f"[red]Backup failed: {result}[/red]")
-    else:
-        size = output.stat().st_size / 1024 / 1024
-        console.print(f"[green]✓ Backup created ({size:.1f} MB)[/green]")
+        raise typer.Exit(code=1)
+
+    size = output.stat().st_size / 1024 / 1024
+    console.print(f"[green]✓ Backup created ({size:.1f} MB)[/green]")
 
 
 @app.command()

@@ -25,12 +25,15 @@ Un outil en ligne de commande bien conçu pour rendre la gestion quotidienne d'A
 git clone https://github.com/ledutheo/syskit.git
 cd syskit
 
-# Using uv (fastest)
-uv pip install -e .
+# One-command local install (venv + ~/.local/bin/syskit)
+./install.sh
 
-# Or with pip
-pip install -e .
+# Or manually with uv / pip
+uv pip install -e .
+# pip install -e .
 ```
+
+After `./install.sh`, the `syskit` command is available globally via `~/.local/bin`.
 
 ### Usage
 
