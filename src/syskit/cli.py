@@ -258,7 +258,7 @@ def doctor() -> None:
         (
             "syskit in PATH",
             syskit_bin is not None,
-            syskit_bin or "run ~/syskit/install.sh",
+            syskit_bin or "run ~/github/syskit/install.sh",
         )
     )
 
