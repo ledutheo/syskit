@@ -263,7 +263,12 @@ def test_command_failed_detects_errors():
 @patch("syskit.cli.run_command")
 def test_doctor_all_ok(mock_run, mock_which, mock_home, tmp_path):
     """doctor exits 0 when all checks pass."""
-    mock_which.side_effect = lambda name: f"/usr/bin/{name}" if name != "syskit" else "/home/bill/.local/bin/syskit"
+    def which_side_effect(name: str) -> str:
+        if name == "syskit":
+            return "/home/bill/.local/bin/syskit"
+        return f"/usr/bin/{name}"
+
+    mock_which.side_effect = which_side_effect
 
     def fake_run(cmd, capture=True):
         if cmd[:2] == ["locale", "charmap"]:
