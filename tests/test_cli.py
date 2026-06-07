@@ -263,6 +263,7 @@ def test_command_failed_detects_errors():
 @patch("syskit.cli.run_command")
 def test_doctor_all_ok(mock_run, mock_which, mock_home, tmp_path):
     """doctor exits 0 when all checks pass."""
+
     def which_side_effect(name: str) -> str:
         if name == "syskit":
             return "/home/bill/.local/bin/syskit"
