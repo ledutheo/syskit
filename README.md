@@ -19,21 +19,17 @@ Un outil en ligne de commande bien conçu pour rendre la gestion quotidienne d'A
 
 ## 🚀 Installation
 
-### From source (recommended for now)
+**Full workflow (PATH, doctor, troubleshooting):** [docs/install-and-doctor.md](docs/install-and-doctor.md)
+
+Clone to `~/github/syskit`, then:
 
 ```bash
-git clone https://github.com/ledutheo/syskit.git
-cd syskit
-
-# One-command local install (venv + ~/.local/bin/syskit)
+cd ~/github/syskit
 ./install.sh
-
-# Or manually with uv / pip
-uv pip install -e .
-# pip install -e .
+syskit doctor
 ```
 
-After `./install.sh`, the `syskit` command is available globally via `~/.local/bin`.
+`./install.sh` creates `.venv`, installs editable `[dev]`, and symlinks `~/.local/bin/syskit`. `uv pip install -e .` does not create that symlink.
 
 ### Usage
 
@@ -53,21 +49,16 @@ syskit backup
 
 ## 🛠 Development
 
+`./install.sh` already installs `[dev]`. Then:
+
 ```bash
-# Install dev dependencies (includes ruff, mypy, pytest, build)
-uv pip install -e ".[dev]"
-
-# Run locally
-python -m syskit.cli --help
-
-# Lint + format + type check
 ruff check .
 ruff format .
 mypy src/
-
-# Run tests (works on any OS thanks to mocks)
 pytest
 ```
+
+See [docs/install-and-doctor.md](docs/install-and-doctor.md#development-same-clone) for uv, CI, and `syskit` not found.
 
 ## Roadmap
 

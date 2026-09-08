@@ -261,6 +261,43 @@ def test_command_failed_detects_errors():
 @patch("syskit.cli.Path.home")
 @patch("syskit.cli.shutil.which")
 @patch("syskit.cli.run_command")
+def test_doctor_prefers_github_clone(mock_run, mock_which, mock_home, tmp_path):
+    """doctor treats ~/github/syskit as the canonical clone."""
+
+    def which_side_effect(name: str) -> str:
+        if name == "syskit":
+            return "/home/bill/.local/bin/syskit"
+        return f"/usr/bin/{name}"
+
+    mock_which.side_effect = which_side_effect
+
+    def fake_run(cmd, capture=True):
+        if cmd[:2] == ["locale", "charmap"]:
+            return "UTF-8"
+        if cmd[:3] == ["gh", "auth", "status"]:
+            return "Logged in to github.com"
+        if "-c" in cmd:
+            return ""
+        return ""
+
+    mock_run.side_effect = fake_run
+
+    clone = tmp_path / "github" / "syskit"
+    clone.mkdir(parents=True)
+    (clone / "pyproject.toml").touch()
+    venv_py = clone / ".venv" / "bin" / "python"
+    venv_py.parent.mkdir(parents=True)
+    venv_py.touch()
+    mock_home.return_value = tmp_path
+
+    result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "github/syskit" in plain(result.output).replace("\\", "/")
+
+
+@patch("syskit.cli.Path.home")
+@patch("syskit.cli.shutil.which")
+@patch("syskit.cli.run_command")
 def test_doctor_all_ok(mock_run, mock_which, mock_home, tmp_path):
     """doctor exits 0 when all checks pass."""
 

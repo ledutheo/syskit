@@ -278,7 +278,14 @@ def doctor() -> None:
     else:
         checks.append(("gh", False, "optional — not installed"))
 
-    clone = Path.home() / "syskit"
+    clone_candidates = (
+        Path.home() / "github" / "syskit",
+        Path.home() / "syskit",
+    )
+    clone = next(
+        (path for path in clone_candidates if (path / "pyproject.toml").exists()),
+        clone_candidates[0],
+    )
     checks.append(
         (
             "syskit source clone",
